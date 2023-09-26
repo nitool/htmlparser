@@ -16,7 +16,6 @@ pub struct HtmlParserContext {
     current_element: Option<HtmlElementName>,
     inside_brackets: bool,
     is_closing_element: bool,
-    current_attribute: Option<String>,
     defined_attributes: HashMap<String, String>,
     text_content: String,
     skip_content_fillup: bool
@@ -33,7 +32,6 @@ impl<R:Read> HtmlParser<R> {
             current_element: None,
             inside_brackets: false,
             is_closing_element: false,
-            current_attribute: None,
             defined_attributes: HashMap::new(),
             text_content: String::new(),
             skip_content_fillup: false
@@ -68,6 +66,34 @@ impl<R:Read> HtmlParser<R> {
         return Some(current_name);
     }
 
+    fn fill_attritube(&mut self) -> () {
+        if !self.context.inside_brackets || self.context.current_element.is_none() {
+            return;
+        }
+
+        let characters_count: Vec<&str> = self.context.text_content.matches('"').collect();
+        if self.context.text_content.contains('"') 
+            && (characters_count.len() == 2 
+                || characters_count.len() == 0
+        ) {
+            let split: Vec<&str> = self.context.text_content.split('=').collect();
+            let attr_name = split[0].trim().to_string();
+            let mut value = split[1].to_string();
+            if value.starts_with('"') {
+                value.remove(0);
+            }
+
+            if value.ends_with('"') {
+                value.remove(value.len() - 1);
+            }
+
+            self.context.defined_attributes.insert(attr_name, value);
+            self.context.text_content = String::new();
+        }
+
+        return;
+    }
+
     fn handle_whitespace(&mut self) -> Option<HtmlEvent> {
         if self.context.text_content.is_empty() {
             return None;
@@ -78,9 +104,7 @@ impl<R:Read> HtmlParser<R> {
             return None;
         }
 
-        if self.context.inside_brackets && self.context.current_element.is_some() {
-
-        }
+        self.fill_attritube();
         
         return None;
     }
@@ -92,6 +116,8 @@ impl<R:Read> HtmlParser<R> {
 
             return None;
         }
+
+        self.fill_attritube();
 
         let name = self.context.current_element.as_ref().unwrap();
         let current_name = HtmlElementName::from_str(name.to_str()).unwrap();
@@ -110,7 +136,6 @@ impl<R:Read> HtmlParser<R> {
         self.context.inside_brackets = false;
         self.context.is_closing_element = false;
         self.context.current_element = None;
-        self.context.current_attribute = None;
         self.context.defined_attributes = HashMap::new();
         self.context.text_content = String::new();
         
@@ -200,31 +225,33 @@ mod tests {
             match event {
                 HtmlEvent::HtmlElementOpened { opened_element } => {
                     if counter == 1 {
-                        assert!(HtmlElementName::Div.to_str() == opened_element.name.to_str());
+                        assert_eq!(HtmlElementName::Div.to_str(), opened_element.name.to_str());
+                        assert_eq!(opened_element.attributes.get("class"), Some(&"test test_eq".to_string()));
+                        assert_eq!(opened_element.attributes.get("data-value"), Some(&"test".to_string()));
                     } else if counter == 2 {
-                        assert!(HtmlElementName::P.to_str() == opened_element.name.to_str());
+                        assert_eq!(HtmlElementName::P.to_str(), opened_element.name.to_str());
                     } else if counter == 3 {
-                        assert!(HtmlElementName::Span.to_str() == opened_element.name.to_str());
+                        assert_eq!(HtmlElementName::Span.to_str(), opened_element.name.to_str());
                     }
                 }
 
                 HtmlEvent::HtmlElementClosed { closed_element } => {
                     if counter == 7 {
-                        assert!(HtmlElementName::Div.to_str() == closed_element.name.to_str());
+                        assert_eq!(HtmlElementName::Div.to_str(), closed_element.name.to_str());
                     } else if counter == 6 {
-                        assert!(HtmlElementName::P.to_str() == closed_element.name.to_str());
+                        assert_eq!(HtmlElementName::P.to_str(), closed_element.name.to_str());
                     } else if counter == 5 {
-                        assert!(HtmlElementName::Span.to_str() == closed_element.name.to_str());
+                        assert_eq!(HtmlElementName::Span.to_str(), closed_element.name.to_str());
                     }
                 }
 
                 HtmlEvent::TextContent(content) => {
-                    assert!(counter == 4);
-                    assert!("text content" == content);
+                    assert_eq!(counter, 4);
+                    assert_eq!("text content", content);
                 }
 
                 HtmlEvent::HtmlDocumentEnd => {
-                    assert!(counter == 8);
+                    assert_eq!(counter, 8);
 
                     break;
                 }

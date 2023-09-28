@@ -139,7 +139,8 @@ pub enum HtmlElementName {
     Shadow,
     Strike,
     Tt,
-    Xmp
+    Xmp,
+    Doctype
 }
 
 impl HtmlElementName {
@@ -281,7 +282,8 @@ impl HtmlElementName {
             HtmlElementName::Shadow => "shadow",
             HtmlElementName::Strike => "strike",
             HtmlElementName::Tt => "tt",
-            HtmlElementName::Xmp => "xmp"
+            HtmlElementName::Xmp => "xmp",
+            HtmlElementName::Doctype => "!doctype"
         }
     }
 
@@ -424,6 +426,7 @@ impl HtmlElementName {
             "strike" => Ok(HtmlElementName::Strike),
             "tt" => Ok(HtmlElementName::Tt),
             "xmp" => Ok(HtmlElementName::Xmp),
+            "!doctype" => Ok(HtmlElementName::Doctype),
             _ => Err("invalid element")
         }
     }

@@ -288,7 +288,7 @@ impl HtmlElementName {
     }
 
     pub fn from_str(value: &str) -> Result<HtmlElementName, &'static str> {
-        match value {
+        match value.to_string().to_lowercase().as_str() {
             "html" => Ok(HtmlElementName::Html),
             "base" => Ok(HtmlElementName::Base),
             "head" => Ok(HtmlElementName::Head),

@@ -78,7 +78,7 @@ impl<R:Read> HtmlParser<R> {
         ) {
             let split: Vec<&str> = self.context.text_content.split('=').collect();
             let attr_name = split[0].trim().to_string();
-            let mut value = split[1].to_string();
+            let mut value = split[1..].join("=");
             if value.starts_with('"') {
                 value.remove(0);
             }

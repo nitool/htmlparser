@@ -26,7 +26,8 @@ fn it_works() {
                 }
             }
 
-            HtmlEvent::HtmlElementClosed { closed_element } => { if counter == 7 {
+            HtmlEvent::HtmlElementClosed { closed_element } => {
+                if counter == 7 {
                     assert_eq!(HtmlElementName::Div.to_str(), closed_element.name.to_str());
                 } else if counter == 6 {
                     assert_eq!(HtmlElementName::P.to_str(), closed_element.name.to_str());

@@ -168,7 +168,21 @@ impl<R:Read> HtmlParser<R> {
                 return Ok(HtmlEvent::HtmlDocumentEnd);
             }
 
-            let read_bytes = String::from_utf8(Vec::from(buffer)).unwrap();
+            let buffer_vec = Vec::from(buffer);
+            let read_bytes_result = String::from_utf8(buffer_vec.clone());
+            let read_bytes: String;
+            match read_bytes_result {
+                Ok(result) => {
+                    read_bytes = result.clone();
+                }
+
+                Err(_error) => {
+                    println!("{:#?}", buffer_vec);
+
+                    continue;
+                }
+            }
+
             let mut event: Option<HtmlEvent>;
             for sign in read_bytes.split("").into_iter() {
                 event = None;

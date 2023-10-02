@@ -117,16 +117,15 @@ impl<R:Read> HtmlParser<R> {
         let element_filled = self.fill_element_from_text_content();
         if element_filled.is_none() {
             self.context.text_content = String::new();
+            self.context.skip_content_fillup = true;
 
             return None;
         }
 
         self.fill_attritube();
 
-        let name = self.context.current_element.as_ref().unwrap();
-        let current_name = HtmlElementName::from_str(name.to_str()).unwrap();
         let element = HtmlElement {
-            name: current_name,
+            name: self.context.current_element.clone().unwrap(),
             attributes: self.context.defined_attributes.clone()
         };
 
@@ -144,6 +143,7 @@ impl<R:Read> HtmlParser<R> {
         self.context.current_element = None;
         self.context.defined_attributes = HashMap::new();
         self.context.text_content = String::new();
+        self.context.skip_content_fillup = true;
         
         return Some(event);
     }
@@ -179,7 +179,8 @@ impl<R:Read> HtmlParser<R> {
             let mut read_bytes: String = String::new();
             read_bytes.push_str(read_bytes_result.borrow());
             let mut event: Option<HtmlEvent>;
-            for sign in read_bytes.split("").into_iter() {
+            for sign_im in read_bytes.split("").into_iter() {
+                let mut sign = sign_im.clone();
                 event = None;
                 self.context.skip_content_fillup = false;
                 if sign == "/" 
@@ -190,17 +191,14 @@ impl<R:Read> HtmlParser<R> {
                     continue;
                 }
 
+                let char = sign.chars().next();
                 if sign == "<" {
                     event = self.handle_opening_bracket();
-                }
-
-                if sign == ">" && self.context.inside_brackets {
+                } else if sign == ">" && self.context.inside_brackets {
                     event = self.handle_closing_bracket();
-                }
-
-                let char = sign.chars().next();
-                if char.is_some() && char.unwrap().is_whitespace() {
+                } else if char.is_some() && char.unwrap().is_whitespace() {
                     event = self.handle_whitespace();
+                    sign = " ";
                 }
 
                 if event.is_some() {

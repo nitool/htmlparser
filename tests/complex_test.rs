@@ -9,13 +9,28 @@ fn it_works() {
     let mut parser = HtmlParser::new(file);
     let mut collected_as = vec![
         "/",
+        "javascript: void(1);",
+        "https://blog.epicdrama.pl/",
         "/watch-now/",
+        "javascript: void(1);",
         "https://www.facebook.com/EpicDramaPL/",
+        "javascript: void(0);",
+        "#carousel-header",
+        "javascript: void(1)",
+        "/watch-now/",
+        "/watch-now/Dalgliesh/2/1",
+        "/",
+        "/bundles/app/files/new/polityka-prywatnosci.pdf?1695806565",
+        "javascript: void(1)",
+        "/watch-now/",
+        "http://viasatexplore.pl/#tvschedule",
+        "http://viasatnature.pl/#tvschedule",
+        "http://viasathistory.pl/#tvschedule",
     ];
 
     loop {
         let event = parser.next().unwrap();
-        println!("{:#?}", event);
+        // println!("{:#?}", event);
 
         match event {
             HtmlEvent::HtmlElementOpened { opened_element } => {
@@ -37,6 +52,7 @@ fn it_works() {
             }
 
             HtmlEvent::HtmlDocumentEnd => {
+                println!("{:#?}", collected_as);
                 assert!(collected_as.is_empty());
 
                 break;

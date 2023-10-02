@@ -182,7 +182,10 @@ impl<R:Read> HtmlParser<R> {
             for sign in read_bytes.split("").into_iter() {
                 event = None;
                 self.context.skip_content_fillup = false;
-                if sign == "/" && self.context.inside_brackets {
+                if sign == "/" 
+                    && self.context.inside_brackets 
+                    && self.context.text_content.clone().trim().is_empty()
+                {
                     self.context.is_closing_element = true;
                     continue;
                 }

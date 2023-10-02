@@ -18,7 +18,7 @@ fn it_works() {
             HtmlEvent::HtmlElementOpened { opened_element } => {
                 if counter == 1 {
                     assert_eq!(HtmlElementName::Doctype.to_str(), opened_element.name.to_str());
-                    assert_eq!(opened_element.attributes.get("html"), None);
+                    assert_eq!(opened_element.attributes.get("html"), Some(&String::new()));
                 } else if counter == 2 {
                     assert_eq!(HtmlElementName::Html.to_str(), opened_element.name.to_str());
                     assert_eq!(opened_element.attributes.get("lang"), Some(&"en".to_string()));

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HtmlElementName {
     Html,
     Base,
@@ -430,9 +430,13 @@ impl HtmlElementName {
             _ => Err("invalid element")
         }
     }
+
+    pub fn is_element(&self, element: HtmlElementName) -> bool {
+        return self.to_str() == element.to_str();
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct HtmlElement {
     pub name: HtmlElementName,
     pub attributes: HashMap<String, String>

@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, borrow::Borrow};
 use std::collections::HashMap;
 use crate::element::{HtmlElement, HtmlElementName};
 
@@ -14,6 +14,7 @@ pub enum HtmlEvent {
 
 pub struct HtmlParserContext {
     current_element: Option<HtmlElementName>,
+    elements: Vec<element::HtmlElement>,
     inside_brackets: bool,
     is_closing_element: bool,
     defined_attributes: HashMap<String, String>,
@@ -30,6 +31,7 @@ impl<R:Read> HtmlParser<R> {
     pub fn new (source: R) -> HtmlParser<R> {
         let context = HtmlParserContext {
             current_element: None,
+            elements: vec![],
             inside_brackets: false,
             is_closing_element: false,
             defined_attributes: HashMap::new(),
@@ -67,15 +69,17 @@ impl<R:Read> HtmlParser<R> {
     }
 
     fn fill_attritube(&mut self) -> () {
-        if !self.context.inside_brackets || self.context.current_element.is_none() {
+        if !self.context.inside_brackets 
+            || self.context.current_element.is_none() 
+            || self.context.text_content.is_empty() 
+        {
             return;
         }
 
         let characters_count: Vec<&str> = self.context.text_content.matches('"').collect();
-        if self.context.text_content.contains('"') 
-            && (characters_count.len() == 2 
-                || characters_count.len() == 0
-        ) {
+        if (self.context.text_content.contains('"') && characters_count.len() == 2) 
+            || characters_count.len() == 0
+        {
             let split: Vec<&str> = self.context.text_content.split('=').collect();
             let attr_name = split[0].trim().to_string();
             let mut value = split[1..].join("=");
@@ -128,9 +132,11 @@ impl<R:Read> HtmlParser<R> {
 
         let event: HtmlEvent;
         if self.context.is_closing_element {
-            event = HtmlEvent::HtmlElementClosed { closed_element: element }
+            event = HtmlEvent::HtmlElementClosed { closed_element: element.clone() };
+            self.context.elements.pop();
         } else {
-            event = HtmlEvent::HtmlElementOpened { opened_element: element }
+            event = HtmlEvent::HtmlElementOpened { opened_element: element.clone() };
+            self.context.elements.push(element.clone());
         }
 
         self.context.inside_brackets = false;
@@ -169,25 +175,13 @@ impl<R:Read> HtmlParser<R> {
             }
 
             let buffer_vec = Vec::from(buffer);
-            let read_bytes_result = String::from_utf8(buffer_vec.clone());
-            let read_bytes: String;
-            match read_bytes_result {
-                Ok(result) => {
-                    read_bytes = result.clone();
-                }
-
-                Err(_error) => {
-                    println!("{:#?}", buffer_vec);
-
-                    continue;
-                }
-            }
-
+            let read_bytes_result = String::from_utf8_lossy(&buffer_vec);
+            let mut read_bytes: String = String::new();
+            read_bytes.push_str(read_bytes_result.borrow());
             let mut event: Option<HtmlEvent>;
             for sign in read_bytes.split("").into_iter() {
                 event = None;
                 self.context.skip_content_fillup = false;
-
                 if sign == "/" && self.context.inside_brackets {
                     self.context.is_closing_element = true;
                     continue;
@@ -201,7 +195,8 @@ impl<R:Read> HtmlParser<R> {
                     event = self.handle_closing_bracket();
                 }
 
-                if sign == " " {
+                let char = sign.chars().next();
+                if char.is_some() && char.unwrap().is_whitespace() {
                     event = self.handle_whitespace();
                 }
 

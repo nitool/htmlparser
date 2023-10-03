@@ -1,3 +1,4 @@
+use std::str::FromStr;
 use std::{io::Read, borrow::Borrow};
 use std::collections::HashMap;
 use crate::element::{HtmlElement, HtmlElementName};
@@ -148,8 +149,47 @@ impl<R:Read> HtmlParser<R> {
         return Some(event);
     }
 
+    fn handle_closing_element(&mut self) -> Option<HtmlEvent> {
+        let last_element = self.context.elements.last();
+        let mut event: Option<HtmlEvent> = None;
+        if last_element.is_some() 
+            && (
+                last_element.unwrap().name.is_element(HtmlElementName::Script)
+                || last_element.unwrap().name.is_element(HtmlElementName::Style)
+            ) && self.context.text_content.trim().ends_with("<")
+        {
+            let mut content = self.context.text_content.trim().to_string();
+            content = content.as_str()[0..content.len() - 1].to_string();
+            if !content.is_empty() {
+                event = Some(HtmlEvent::TextContent(content));
+            }
+
+            self.context.skip_content_fillup = true;
+            self.context.text_content = String::new();
+            self.context.inside_brackets = true;
+            self.context.is_closing_element = true;
+        } else if self.context.inside_brackets 
+            && self.context.text_content.clone().trim().is_empty() 
+        {
+            self.context.is_closing_element = true;
+            self.context.skip_content_fillup = true;
+        }
+
+        return event;
+    }
+
     fn handle_opening_bracket(&mut self) -> Option<HtmlEvent> {
         if self.context.inside_brackets {
+            return None;
+        }
+
+        let last_element = self.context.elements.last();
+        if last_element.is_some() 
+            && (
+                last_element.unwrap().name.is_element(HtmlElementName::Script)
+                || last_element.unwrap().name.is_element(HtmlElementName::Style)
+            )
+        {
             return None;
         }
 
@@ -183,16 +223,10 @@ impl<R:Read> HtmlParser<R> {
                 let mut sign = sign_im.clone();
                 event = None;
                 self.context.skip_content_fillup = false;
-                if sign == "/" 
-                    && self.context.inside_brackets 
-                    && self.context.text_content.clone().trim().is_empty()
-                {
-                    self.context.is_closing_element = true;
-                    continue;
-                }
-
                 let char = sign.chars().next();
-                if sign == "<" {
+                if sign == "/" {
+                    event = self.handle_closing_element();
+                } else if sign == "<" {
                     event = self.handle_opening_bracket();
                 } else if sign == ">" && self.context.inside_brackets {
                     event = self.handle_closing_bracket();

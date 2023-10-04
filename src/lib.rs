@@ -1,6 +1,5 @@
-use std::str::FromStr;
-use std::{io::Read, borrow::Borrow};
-use std::collections::HashMap;
+use std::io::Read;
+use std::collections::{HashMap, VecDeque};
 use crate::element::{HtmlElement, HtmlElementName};
 
 pub mod element;
@@ -20,7 +19,9 @@ pub struct HtmlParserContext {
     is_closing_element: bool,
     defined_attributes: HashMap<String, String>,
     text_content: String,
-    skip_content_fillup: bool
+    skip_content_fillup: bool,
+    buffer_vec: Vec<u8>,
+    events: VecDeque<HtmlEvent>
 }
 
 pub struct HtmlParser<R> {
@@ -37,7 +38,9 @@ impl<R:Read> HtmlParser<R> {
             is_closing_element: false,
             defined_attributes: HashMap::new(),
             text_content: String::new(),
-            skip_content_fillup: false
+            skip_content_fillup: false,
+            buffer_vec: vec![],
+            events: VecDeque::new()
         };
 
         return HtmlParser { source, context };
@@ -207,17 +210,39 @@ impl<R:Read> HtmlParser<R> {
     }
 
     pub fn next(&mut self) -> Result<HtmlEvent, &'static str> {
+        if self.context.events.len() > 0 {
+            let event = self.context.events.pop_front().unwrap();
+            
+            return Ok(event);
+        }
+
         loop {
-            let mut buffer = [0; 1];
+            let mut buffer = [0; 4];
             let read_result = self.source.read(&mut buffer).unwrap();
             if read_result == 0 {
                 return Ok(HtmlEvent::HtmlDocumentEnd);
             }
 
-            let buffer_vec = Vec::from(buffer);
-            let read_bytes_result = String::from_utf8_lossy(&buffer_vec);
-            let mut read_bytes: String = String::new();
-            read_bytes.push_str(read_bytes_result.borrow());
+            if self.context.buffer_vec.is_empty() {
+                self.context.buffer_vec = Vec::from(buffer);
+            } else {
+                let mut temporary_vec = Vec::from(buffer);
+                self.context.buffer_vec.append(&mut temporary_vec);
+            }
+
+            let read_bytes_result = String::from_utf8(self.context.buffer_vec.clone());
+            let read_bytes: String;
+            match read_bytes_result {
+                Ok(element) => {
+                    read_bytes = element.clone();
+                    self.context.buffer_vec = vec![];
+                }
+
+                Err(_error) => {
+                    continue;
+                }
+            }
+
             let mut event: Option<HtmlEvent>;
             for sign_im in read_bytes.split("").into_iter() {
                 let mut sign = sign_im.clone();
@@ -236,14 +261,20 @@ impl<R:Read> HtmlParser<R> {
                 }
 
                 if event.is_some() {
-                    let value = event.unwrap();
+                    self.context.events.push_back(event.unwrap());
 
-                    return Ok(value);
+                    continue;
                 }
 
                 if !self.context.skip_content_fillup {
                     self.context.text_content.push_str(sign);
                 }
+            }
+
+            if self.context.events.len() > 0 {
+                let event = self.context.events.pop_front().unwrap();
+                
+                return Ok(event);
             }
         }
     }

@@ -69,7 +69,7 @@ fn it_works() {
 
             HtmlEvent::TextContent(content) => {
                 if counter == 8 {
-                    assert_eq!("HTML 5 Boilerplate".to_string(), content);
+                    assert_eq!("HTML 5 Kórwa".to_string(), content);
                 } else if counter == 12 {
                     assert_eq!("if (1 < 2) { console.log('test'); }".to_string(), content);
                 }

@@ -434,6 +434,28 @@ impl HtmlElementName {
     pub fn is_element(&self, element: HtmlElementName) -> bool {
         return self.to_str() == element.to_str();
     }
+
+    pub fn is_self_closing_element(&self) -> bool {
+        match self {
+            HtmlElementName::Area
+            | HtmlElementName::Base
+            | HtmlElementName::Br
+            | HtmlElementName::Col
+            | HtmlElementName::Embed
+            | HtmlElementName::Hr
+            | HtmlElementName::Img
+            | HtmlElementName::Input
+            | HtmlElementName::Link
+            | HtmlElementName::Meta
+            | HtmlElementName::Param
+            | HtmlElementName::Source
+            | HtmlElementName::Track
+            | HtmlElementName::Wbr
+            | HtmlElementName::Menuitem
+            | HtmlElementName::Frame => true,
+            _ => false
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -12,6 +12,7 @@ pub enum HtmlEvent {
     HtmlDocumentEnd,
 }
 
+#[derive(Debug)]
 pub struct HtmlParserContext {
     current_element: Option<HtmlElementName>,
     elements: Vec<element::HtmlElement>,
@@ -117,11 +118,31 @@ impl<R:Read> HtmlParser<R> {
         return None;
     }
 
+    fn push_element(&mut self, element: HtmlElement) -> () {
+        if element.name.is_self_closing_element() {
+            return;
+        }
+
+        self.context.elements.push(element);
+    }
+
+    fn pop_element(&mut self, element: HtmlElement) -> () {
+        let last_element_opt = self.context.elements.last();
+        if last_element_opt.is_none() {
+            return ();
+        }
+
+        if last_element_opt.unwrap().name.is_element(element.name) {
+            self.context.elements.pop();
+        }
+    }
+
     fn handle_closing_bracket(&mut self) -> Option<HtmlEvent> {
         let element_filled = self.fill_element_from_text_content();
-        if element_filled.is_none() {
-            self.context.text_content = String::new();
-            self.context.skip_content_fillup = true;
+        if self.context.inside_brackets && element_filled.is_none() {
+            self.context.inside_brackets = false;
+            self.context.is_closing_element = false;
+            self.context.defined_attributes = HashMap::new();
 
             return None;
         }
@@ -136,10 +157,10 @@ impl<R:Read> HtmlParser<R> {
         let event: HtmlEvent;
         if self.context.is_closing_element {
             event = HtmlEvent::HtmlElementClosed { closed_element: element.clone() };
-            self.context.elements.pop();
+            self.pop_element(element);
         } else {
             event = HtmlEvent::HtmlElementOpened { opened_element: element.clone() };
-            self.context.elements.push(element.clone());
+            self.push_element(element);
         }
 
         self.context.inside_brackets = false;
@@ -174,7 +195,7 @@ impl<R:Read> HtmlParser<R> {
         } else if self.context.inside_brackets 
             && self.context.text_content.clone().trim().is_empty() 
         {
-            self.context.is_closing_element = true;
+            self.context.is_closing_element = self.context.current_element.is_none();
             self.context.skip_content_fillup = true;
         }
 
@@ -220,6 +241,12 @@ impl<R:Read> HtmlParser<R> {
             let mut buffer = [0; 4];
             let read_result = self.source.read(&mut buffer).unwrap();
             if read_result == 0 {
+                if self.context.events.len() > 0 {
+                    let event = self.context.events.pop_front().unwrap();
+                    
+                    return Ok(event);
+                }
+
                 return Ok(HtmlEvent::HtmlDocumentEnd);
             }
 
@@ -267,6 +294,10 @@ impl<R:Read> HtmlParser<R> {
                 }
 
                 if !self.context.skip_content_fillup {
+                    if sign == " " {
+                        self.context.text_content = self.context.text_content.trim().to_string();
+                    }
+
                     self.context.text_content.push_str(sign);
                 }
             }
